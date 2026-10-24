@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nitish's Daily List</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Daily List">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EEF1F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1217" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: one thumb-width column; a day header with progress, then three time-of-day blocks of big tap rows */
+:root {
+  --bg: #EEF1F4; --surface: #FFFFFF; --fg: #17202B; --muted: #66717F; --line: #DCE2E8;
+  --morning: #D9822B; --work: #2F6FD6; --night: #6A55C9; --done: #2E9B6A;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Figtree", -apple-system, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E1217; --surface: #171C23; --fg: #E9EDF2; --muted: #8D98A6; --line: #262E38;
+  --morning: #F0A04B; --work: #6A9CF0; --night: #9C8AF0; --done: #4CC08A; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0E1217; --surface: #171C23; --fg: #E9EDF2; --muted: #8D98A6; --line: #262E38;
+  --morning: #F0A04B; --work: #6A9CF0; --night: #9C8AF0; --done: #4CC08A; color-scheme: dark }
+html { color-scheme: light; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.4; -webkit-text-size-adjust: 100%;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: calc(20px + env(safe-area-inset-top, 0px)); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
+[hidden] { display: none !important; }
+main { max-width: 520px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; }
+.date { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-size: 30px; line-height: 1.1; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 14px; grid-column: 1; }
+.ring { grid-row: 1 / span 3; grid-column: 2; width: 84px; height: 84px; position: relative; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 9; }
+.ring .track { stroke: var(--line); }
+.ring .bar { stroke: var(--done); stroke-linecap: round; transition: stroke-dashoffset .4s ease; }
+.ring b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 21px; font-variant-numeric: tabular-nums; }
+.week { display: flex; gap: 6px; }
+.week div { flex: 1; display: grid; gap: 4px; justify-items: center; font-size: 11px; color: var(--muted); }
+.week i { width: 100%; height: 6px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
+.week i span { position: absolute; inset: 0 auto 0 0; background: var(--done); border-radius: 3px; }
+.week .today { color: var(--fg); font-weight: 600; }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+section h2 { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 14px 16px 10px; font-family: var(--display); font-size: 19px; }
+section h2 small { font-family: var(--body); font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+section h2 .when { font-family: var(--body); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c); margin-right: auto; padding-left: 8px; }
+ul { list-style: none; margin: 0; padding: 0; }
+li { border-top: 1px solid var(--line); display: flex; align-items: center; }
+li button.item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 13px 16px; min-height: 56px;
+  background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.box { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--c); display: grid; place-items: center; transition: background .15s; }
+.box svg { width: 15px; height: 15px; opacity: 0; transform: scale(.6); transition: .15s; }
+.label { min-width: 0; }
+.label small { display: block; color: var(--muted); font-size: 13px; }
+li.on .box { background: var(--c); }
+li.on .box svg { opacity: 1; transform: none; }
+li.on .label > span { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
+button:focus-visible { outline: 2px solid var(--work); outline-offset: -2px; }
+.del { display: none; flex: none; width: 48px; align-self: stretch; border: 0; background: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+body.editing .del { display: block; }
+body.editing li button.item { pointer-events: none; }
+form.add { display: none; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid var(--line); }
+body.editing form.add { display: flex; }
+form.add input { flex: 1; min-width: 0; font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+form.add button, .bar-btns button { font: inherit; font-weight: 600; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 10px 14px; cursor: pointer; }
+.bar-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.bar-btns button { flex: 1; }
+.note { color: var(--muted); font-size: 13px; text-align: center; }
+.confirm { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; font-size: 14px; }
+.allset { text-align: center; font-family: var(--display); font-size: 18px; color: var(--done); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="date" id="date"></div>
+    <h1 id="greet">Today</h1>
+    <div class="sub" id="sub"></div>
+    <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42"/><circle class="bar" id="bar" cx="50" cy="50" r="42"/></svg><b id="pct">0%</b></div>
+  </header>
+  <div class="week" id="week" aria-label="Last 7 days"></div>
+  <div class="allset" id="allset" hidden>Everything done today. Nice work.</div>
+  <div id="lists"></div>
+  <div class="bar-btns">
+    <button id="edit" type="button">Edit list</button>
+    <button id="clear" type="button">Untick all</button>
+  </div>
+  <div class="confirm" id="confirm" hidden>Untick everything for today?
+    <button id="yes" type="button" style="font:inherit;font-weight:600;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg)">Yes, untick</button>
+    <button id="no" type="button" style="font:inherit;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--muted)">Cancel</button>
+  </div>
+  <p class="note">Ticks clear by themselves at midnight. Your list and ticks are saved on this phone.</p>
+</main>
+
+<script>
+const DEFAULT = [
+  { id: 'morning', name: 'Morning', when: 'Wake up', c: '--morning', items: [
+    ['Drink a glass of water', ''],
+    ['Brush teeth', ''],
+    ['Wash face with cleanser', 'Skin care'],
+    ['Moisturiser', 'Skin care'],
+    ['Exercise or walk', '20 minutes'],
+    ['Bath', ''],
+    ['Sunscreen before going out', 'Skin care · SPF 30+'],
+    ['Healthy breakfast', ''],
+  ]},
+  { id: 'work', name: 'Work', when: 'Day', c: '--work', items: [
+    ['Write today’s top 3 tasks', ''],
+    ['Post today’s Roll & Reel reel', 'Instagram · YouTube · Facebook'],
+    ['Editing work', 'Client edits'],
+    ['Check Fiverr messages and orders', ''],
+    ['Reply to messages and emails', ''],
+    ['Lunch and a short break', ''],
+    ['Back up today’s footage and projects', ''],
+    ['Drink water through the day', '3 litres'],
+  ]},
+  { id: 'night', name: 'Night', when: 'Wind down', c: '--night', items: [
+    ['Learn one new camera or editing trick', '20 minutes'],
+    ['Dinner', ''],
+    ['Wash face and night moisturiser', 'Skin care'],
+    ['Brush teeth', ''],
+    ['Plan tomorrow', ''],
+    ['Phone away, sleep on time', ''],
+  ]},
+];
+const K = 'daily-list-v1';
+const store = { get(k, d) { try { const v = localStorage.getItem(K + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+                set(k, v) { try { localStorage.setItem(K + k, JSON.stringify(v)); } catch (e) {} } };
+const dayKey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+let lists = store.get(':lists', null);
+if (!lists) lists = DEFAULT.map(s => ({ ...s, items: s.items.map(([t, n], i) => ({ id: s.id + i, t, n })) }));
+let today = dayKey();
+let done = new Set(store.get(':done:' + today, []));
+let history = store.get(':history', {});
+const $ = id => document.getElementById(id);
+const tick = '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3L13 4.5" stroke="var(--surface)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+function total() { return lists.reduce((a, s) => a + s.items.length, 0); }
+function save() {
+  const all = lists.flatMap(s => s.items.map(i => i.id));
+  done = new Set([...done].filter(id => all.includes(id)));
+  store.set(':done:' + today, [...done]);
+  history[today] = total() ? done.size / total() : 0;
+  const keys = Object.keys(history).sort().slice(-60); history = Object.fromEntries(keys.map(k => [k, history[k]]));
+  store.set(':history', history);
+}
+function render() {
+  const now = new Date(), h = now.getHours();
+  $('date').textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  $('greet').textContent = h < 12 ? 'Good morning, Nitish' : h < 17 ? 'Good afternoon, Nitish' : 'Good evening, Nitish';
+  const n = total(), d = done.size, p = n ? d / n : 0;
+  $('sub').textContent = d === n && n ? 'All ' + n + ' done' : d + ' of ' + n + ' done';
+  const C = 2 * Math.PI * 42; $('bar').style.strokeDasharray = C; $('bar').style.strokeDashoffset = C * (1 - p);
+  $('pct').textContent = Math.round(p * 100) + '%';
+  $('allset').hidden = !(n && d === n);
+  // last 7 days
+  let w = '';
+  for (let i = 6; i >= 0; i--) {
+    const dt = new Date(now); dt.setDate(now.getDate() - i); const k = dayKey(dt);
+    const v = i === 0 ? p : (history[k] || 0);
+    w += `<div class="${i === 0 ? 'today' : ''}"><i><span style="width:${Math.round(v * 100)}%"></span></i>${dt.toLocaleDateString(undefined, { weekday: 'narrow' })}</div>`;
+  }
+  $('week').innerHTML = w;
+  $('lists').innerHTML = lists.map(s => {
+    const sd = s.items.filter(i => done.has(i.id)).length;
+    return `<section style="--c:var(${s.c})"><h2>${esc(s.name)}<span class="when">${esc(s.when)}</span><small>${sd}/${s.items.length}</small></h2><ul>` +
+      s.items.map(i => `<li class="${done.has(i.id) ? 'on' : ''}"><button class="item" type="button" data-id="${i.id}" aria-pressed="${done.has(i.id)}"><span class="box">${tick}</span><span class="label"><span>${esc(i.t)}</span>${i.n ? `<small>${esc(i.n)}</small>` : ''}</span></button><button class="del" type="button" data-del="${i.id}" aria-label="Remove ${esc(i.t)}">×</button></li>`).join('') +
+      `</ul><form class="add" data-sec="${s.id}"><input id="add-${s.id}" placeholder="Add to ${esc(s.name)}…" aria-label="New ${esc(s.name)} task"><button type="submit">Add</button></form></section>`;
+  }).join('');
+}
+$('lists').addEventListener('click', e => {
+  const b = e.target.closest('[data-id]'), x = e.target.closest('[data-del]');
+  if (b) { const id = b.dataset.id; done.has(id) ? done.delete(id) : done.add(id); save(); render(); }
+  if (x) { lists.forEach(s => s.items = s.items.filter(i => i.id !== x.dataset.del)); store.set(':lists', lists); save(); render(); }
+});
+$('lists').addEventListener('submit', e => {
+  e.preventDefault(); const f = e.target, v = f.querySelector('input').value.trim(); if (!v) return;
+  const s = lists.find(s => s.id === f.dataset.sec); s.items.push({ id: s.id + Date.now(), t: v, n: '' });
+  store.set(':lists', lists); save(); render(); const inp = $('add-' + s.id); if (inp) inp.focus();
+});
+$('edit').onclick = () => { const on = document.body.classList.toggle('editing'); $('edit').textContent = on ? 'Done editing' : 'Edit list'; };
+$('clear').onclick = () => { $('confirm').hidden = false; };
+$('no').onclick = () => { $('confirm').hidden = true; };
+$('yes').onclick = () => { done.clear(); save(); render(); $('confirm').hidden = true; };
+// new day check
+setInterval(() => { if (dayKey() !== today) { today = dayKey(); done = new Set(store.get(':done:' + today, [])); render(); } }, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && dayKey() !== today) { today = dayKey(); done = new Set(store.get(':done:' + today, [])); render(); } });
+render();
+</script>
+</body>
+</html>
