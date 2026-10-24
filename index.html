@@ -7,195 +7,424 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Daily List">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#EEF1F4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E1217" media="(prefers-color-scheme: dark)">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+  /* ====== PASTE YOUR SUPABASE DETAILS HERE (Project Settings → API) ====== */
+  const SUPABASE_URL = 'https://ceboyaukuxvfymiedpwj.supabase.co';
+  const SUPABASE_ANON_KEY = 'PASTE_ANON_PUBLIC_KEY_HERE';
+  /* ======================================================================= */
+</script>
 <style>
-/* Layout: one thumb-width column; a day header with progress, then three time-of-day blocks of big tap rows */
+/* Layout: one thumb-width column; header with day + progress, two tabs (Today, Plans), big tap rows */
 :root {
-  --bg: #EEF1F4; --surface: #FFFFFF; --fg: #17202B; --muted: #66717F; --line: #DCE2E8;
-  --morning: #D9822B; --work: #2F6FD6; --night: #6A55C9; --done: #2E9B6A;
+  --bg: #EEF1F4; --surface: #FFFFFF; --fg: #17202B; --muted: #66717F; --line: #DCE2E8; --field: #F5F7F9;
+  --morning: #D9822B; --work: #2F6FD6; --night: #6A55C9; --done: #2E9B6A; --danger: #C8433A;
   --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
   --body: "Figtree", -apple-system, system-ui, sans-serif;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0E1217; --surface: #171C23; --fg: #E9EDF2; --muted: #8D98A6; --line: #262E38;
-  --morning: #F0A04B; --work: #6A9CF0; --night: #9C8AF0; --done: #4CC08A; color-scheme: dark } }
-:root[data-theme="dark"] {
-  --bg: #0E1217; --surface: #171C23; --fg: #E9EDF2; --muted: #8D98A6; --line: #262E38;
-  --morning: #F0A04B; --work: #6A9CF0; --night: #9C8AF0; --done: #4CC08A; color-scheme: dark }
-html { color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0E1217; --surface: #171C23; --fg: #E9EDF2; --muted: #8D98A6; --line: #262E38; --field: #11161C;
+  --morning: #F0A04B; --work: #6A9CF0; --night: #9C8AF0; --done: #4CC08A; --danger: #F07068; color-scheme: dark } }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.4; -webkit-text-size-adjust: 100%;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: calc(20px + env(safe-area-inset-top, 0px)); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
 [hidden] { display: none !important; }
-main { max-width: 520px; margin: 0 auto; display: grid; gap: 18px; }
-header { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; }
-.date { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.4; -webkit-text-size-adjust: 100%;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: calc(20px + env(safe-area-inset-top, 0px)); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
+main { max-width: 520px; margin: 0 auto; display: grid; gap: 16px; }
 h1 { font-family: var(--display); font-size: 30px; line-height: 1.1; margin: 0; text-wrap: balance; }
-.sub { color: var(--muted); font-size: 14px; grid-column: 1; }
+h2 { font-family: var(--display); font-size: 19px; margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--work); outline-offset: 2px; }
+.btn { font-weight: 600; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); padding: 12px 16px; }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn.danger { color: var(--danger); }
+.btn.link { border: 0; background: none; padding: 6px 4px; color: var(--muted); font-weight: 500; }
+input, select { font: inherit; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--field); color: var(--fg); }
+label.f { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.msg { font-size: 14px; padding: 10px 12px; border-radius: 10px; background: var(--field); border: 1px solid var(--line); }
+.msg.err { color: var(--danger); }
+
+/* auth */
+.auth { padding: 22px 20px; display: grid; gap: 14px; }
+.auth form { display: grid; gap: 12px; }
+
+/* header */
+header { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; }
+.daynav { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.daynav button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; width: 30px; height: 28px; line-height: 1; color: var(--fg); }
+.daynav .todaybtn { width: auto; padding: 0 8px; font-size: 12px; letter-spacing: .04em; }
 .ring { grid-row: 1 / span 3; grid-column: 2; width: 84px; height: 84px; position: relative; }
 .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 9; }
 .ring .track { stroke: var(--line); }
 .ring .bar { stroke: var(--done); stroke-linecap: round; transition: stroke-dashoffset .4s ease; }
 .ring b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 21px; font-variant-numeric: tabular-nums; }
+
+/* tabs */
+.tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; }
+.tabs button { border: 0; background: none; border-radius: 9px; padding: 10px; font-weight: 600; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); }
+
 .week { display: flex; gap: 6px; }
 .week div { flex: 1; display: grid; gap: 4px; justify-items: center; font-size: 11px; color: var(--muted); }
 .week i { width: 100%; height: 6px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
 .week i span { position: absolute; inset: 0 auto 0 0; background: var(--done); border-radius: 3px; }
-.week .today { color: var(--fg); font-weight: 600; }
-section { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
-section h2 { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
-  padding: 14px 16px 10px; font-family: var(--display); font-size: 19px; }
-section h2 small { font-family: var(--body); font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
-section h2 .when { font-family: var(--body); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c); margin-right: auto; padding-left: 8px; }
+.week .cur { color: var(--fg); font-weight: 600; }
+
+section.sec { overflow: hidden; }
+section.sec > h2 { display: flex; align-items: baseline; gap: 8px; padding: 14px 16px 10px; }
+section.sec > h2 .when { font-family: var(--body); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c); margin-right: auto; }
+section.sec > h2 small { font-family: var(--body); font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 ul { list-style: none; margin: 0; padding: 0; }
-li { border-top: 1px solid var(--line); display: flex; align-items: center; }
-li button.item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 13px 16px; min-height: 56px;
-  background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+li { border-top: 1px solid var(--line); }
+.row { width: 100%; display: flex; align-items: center; gap: 14px; padding: 13px 16px; min-height: 56px; background: none; border: 0; text-align: left; }
 .box { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--c); display: grid; place-items: center; transition: background .15s; }
 .box svg { width: 15px; height: 15px; opacity: 0; transform: scale(.6); transition: .15s; }
-.label { min-width: 0; }
-.label small { display: block; color: var(--muted); font-size: 13px; }
+.lbl { min-width: 0; flex: 1; }
+.lbl small { display: block; color: var(--muted); font-size: 13px; }
 li.on .box { background: var(--c); }
 li.on .box svg { opacity: 1; transform: none; }
-li.on .label > span { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
-button:focus-visible { outline: 2px solid var(--work); outline-offset: -2px; }
-.del { display: none; flex: none; width: 48px; align-self: stretch; border: 0; background: none; color: var(--muted); font-size: 22px; cursor: pointer; }
-body.editing .del { display: block; }
-body.editing li button.item { pointer-events: none; }
-form.add { display: none; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid var(--line); }
-body.editing form.add { display: flex; }
-form.add input { flex: 1; min-width: 0; font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
-form.add button, .bar-btns button { font: inherit; font-weight: 600; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 10px 14px; cursor: pointer; }
-.bar-btns { display: flex; gap: 10px; flex-wrap: wrap; }
-.bar-btns button { flex: 1; }
-.note { color: var(--muted); font-size: 13px; text-align: center; }
-.confirm { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; font-size: 14px; }
+li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
+.empty { padding: 4px 16px 16px; color: var(--muted); font-size: 14px; }
+.tag { flex: none; font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+
+/* plan form */
+.form { padding: 18px 16px; display: grid; gap: 14px; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.seg button, .daysel button { border: 1px solid var(--line); background: var(--field); border-radius: 10px; padding: 10px 6px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"], .daysel button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.daysel { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.daysel button { padding: 10px 0; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions .btn { flex: 1; }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
 .allset { text-align: center; font-family: var(--display); font-size: 18px; color: var(--done); }
+.loading { text-align: center; color: var(--muted); padding: 40px 0; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-<main>
+
+<!-- Shown only if the Supabase details above were not filled in -->
+<main id="setup" hidden>
+  <div class="card auth">
+    <h1>Almost ready</h1>
+    <p class="muted">Open <b>index.html</b> on GitHub, click the pencil to edit, and paste your Supabase <b>Project URL</b> and <b>anon public key</b> into the two lines near the top. Then commit.</p>
+  </div>
+</main>
+
+<main id="loading" class="loading">Loading…</main>
+
+<!-- Login / sign up -->
+<main id="auth" hidden>
+  <div><h1>Daily List</h1><p class="muted">Log in to see your plans. Everything is saved to your account.</p></div>
+  <div class="card auth">
+    <h2 id="authTitle">Log in</h2>
+    <form id="authForm">
+      <label class="f">Email <input id="email" type="email" autocomplete="email" required></label>
+      <label class="f">Password <input id="password" type="password" autocomplete="current-password" minlength="6" required></label>
+      <button class="btn primary" id="authBtn" type="submit">Log in</button>
+    </form>
+    <div class="msg" id="authMsg" hidden></div>
+    <button class="btn link" id="authSwitch" type="button">New here? Create an account</button>
+  </div>
+</main>
+
+<!-- App -->
+<main id="app" hidden>
   <header>
-    <div class="date" id="date"></div>
+    <div class="daynav">
+      <button id="prev" type="button" aria-label="Previous day">‹</button>
+      <span id="date"></span>
+      <button id="next" type="button" aria-label="Next day">›</button>
+      <button id="toToday" class="todaybtn" type="button" hidden>Today</button>
+    </div>
     <h1 id="greet">Today</h1>
-    <div class="sub" id="sub"></div>
+    <div class="muted small" id="sub"></div>
     <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42"/><circle class="bar" id="bar" cx="50" cy="50" r="42"/></svg><b id="pct">0%</b></div>
   </header>
-  <div class="week" id="week" aria-label="Last 7 days"></div>
-  <div class="allset" id="allset" hidden>Everything done today. Nice work.</div>
-  <div id="lists"></div>
-  <div class="bar-btns">
-    <button id="edit" type="button">Edit list</button>
-    <button id="clear" type="button">Untick all</button>
+
+  <div class="tabs" role="tablist">
+    <button id="tabToday" role="tab" aria-selected="true" type="button">Today</button>
+    <button id="tabPlans" role="tab" aria-selected="false" type="button">Plans</button>
   </div>
-  <div class="confirm" id="confirm" hidden>Untick everything for today?
-    <button id="yes" type="button" style="font:inherit;font-weight:600;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg)">Yes, untick</button>
-    <button id="no" type="button" style="font:inherit;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--muted)">Cancel</button>
+
+  <!-- TODAY -->
+  <div id="viewToday" style="display:grid;gap:16px">
+    <div class="week" id="week" aria-label="Last 7 days"></div>
+    <div class="allset" id="allset" hidden>Everything done. Nice work.</div>
+    <div class="msg err" id="todayMsg" hidden></div>
+    <div id="lists" style="display:grid;gap:16px"></div>
+    <div class="card form" id="starter" hidden>
+      <h2>No plans yet</h2>
+      <p class="muted" style="margin:0">Add your own in the Plans tab, or start with a common daily routine (skin care, work, night) and change it later.</p>
+      <div class="actions"><button class="btn primary" id="seed" type="button">Add starter routine</button><button class="btn" id="goPlans" type="button">Add my own</button></div>
+    </div>
   </div>
-  <p class="note">Ticks clear by themselves at midnight. Your list and ticks are saved on this phone.</p>
+
+  <!-- PLANS -->
+  <div id="viewPlans" hidden style="display:grid;gap:16px">
+    <form class="card form" id="planForm">
+      <h2 id="formTitle">Add a plan</h2>
+      <label class="f">What to do <input id="pTitle" required maxlength="120" placeholder="e.g. Gym, Call mom, Edit video"></label>
+      <label class="f">Detail (optional) <input id="pNote" maxlength="120" placeholder="e.g. 30 minutes"></label>
+      <div class="f" style="display:grid;gap:6px;font-size:14px;font-weight:600">Time of day
+        <div class="seg" id="segSection">
+          <button type="button" data-v="morning">Morning</button><button type="button" data-v="work">Day</button><button type="button" data-v="night">Night</button>
+        </div>
+      </div>
+      <div class="f" style="display:grid;gap:6px;font-size:14px;font-weight:600">Repeat
+        <div class="seg" id="segRepeat">
+          <button type="button" data-v="daily">Every day</button><button type="button" data-v="days">Some days</button><button type="button" data-v="once">One date</button>
+        </div>
+      </div>
+      <div id="daysWrap" class="daysel" hidden></div>
+      <label class="f" id="dateWrap" hidden>Date <input id="pDate" type="date"></label>
+      <div class="actions">
+        <button class="btn primary" id="saveBtn" type="submit">Add plan</button>
+        <button class="btn" id="cancelEdit" type="button" hidden>Cancel</button>
+      </div>
+      <div class="actions" id="delWrap" hidden>
+        <button class="btn danger" id="delBtn" type="button">Delete this plan</button>
+      </div>
+      <div class="actions" id="delConfirm" hidden>
+        <span class="small muted" style="align-self:center;flex-basis:100%">Delete it from all days, including past ticks?</span>
+        <button class="btn danger" id="delYes" type="button">Yes, delete</button><button class="btn" id="delNo" type="button">Keep it</button>
+      </div>
+      <div class="msg err" id="formMsg" hidden></div>
+    </form>
+    <div id="planList" style="display:grid;gap:16px"></div>
+  </div>
+
+  <div class="foot"><span id="who"></span><button class="btn link" id="logout" type="button">Log out</button></div>
 </main>
 
 <script>
-const DEFAULT = [
-  { id: 'morning', name: 'Morning', when: 'Wake up', c: '--morning', items: [
-    ['Drink a glass of water', ''],
-    ['Brush teeth', ''],
-    ['Wash face with cleanser', 'Skin care'],
-    ['Moisturiser', 'Skin care'],
-    ['Exercise or walk', '20 minutes'],
-    ['Bath', ''],
-    ['Sunscreen before going out', 'Skin care · SPF 30+'],
-    ['Healthy breakfast', ''],
-  ]},
-  { id: 'work', name: 'Work', when: 'Day', c: '--work', items: [
-    ['Write today’s top 3 tasks', ''],
-    ['Post today’s Roll & Reel reel', 'Instagram · YouTube · Facebook'],
-    ['Editing work', 'Client edits'],
-    ['Check Fiverr messages and orders', ''],
-    ['Reply to messages and emails', ''],
-    ['Lunch and a short break', ''],
-    ['Back up today’s footage and projects', ''],
-    ['Drink water through the day', '3 litres'],
-  ]},
-  { id: 'night', name: 'Night', when: 'Wind down', c: '--night', items: [
-    ['Learn one new camera or editing trick', '20 minutes'],
-    ['Dinner', ''],
-    ['Wash face and night moisturiser', 'Skin care'],
-    ['Brush teeth', ''],
-    ['Plan tomorrow', ''],
-    ['Phone away, sleep on time', ''],
-  ]},
-];
-const K = 'daily-list-v1';
-const store = { get(k, d) { try { const v = localStorage.getItem(K + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-                set(k, v) { try { localStorage.setItem(K + k, JSON.stringify(v)); } catch (e) {} } };
-const dayKey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-
-let lists = store.get(':lists', null);
-if (!lists) lists = DEFAULT.map(s => ({ ...s, items: s.items.map(([t, n], i) => ({ id: s.id + i, t, n })) }));
-let today = dayKey();
-let done = new Set(store.get(':done:' + today, []));
-let history = store.get(':history', {});
+(function () {
 const $ = id => document.getElementById(id);
-const tick = '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3L13 4.5" stroke="var(--surface)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const show = id => ['setup', 'loading', 'auth', 'app'].forEach(m => $(m).hidden = m !== id);
+if (!window.supabase || SUPABASE_URL.startsWith('PASTE') || SUPABASE_ANON_KEY.startsWith('PASTE')) { show('setup'); return; }
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
-function total() { return lists.reduce((a, s) => a + s.items.length, 0); }
-function save() {
-  const all = lists.flatMap(s => s.items.map(i => i.id));
-  done = new Set([...done].filter(id => all.includes(id)));
-  store.set(':done:' + today, [...done]);
-  history[today] = total() ? done.size / total() : 0;
-  const keys = Object.keys(history).sort().slice(-60); history = Object.fromEntries(keys.map(k => [k, history[k]]));
-  store.set(':history', history);
+const SECTIONS = [
+  { id: 'morning', name: 'Morning', when: 'Wake up', c: '--morning' },
+  { id: 'work', name: 'Day', when: 'Work', c: '--work' },
+  { id: 'night', name: 'Night', when: 'Wind down', c: '--night' },
+];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const STARTER = [
+  ['morning', 'Drink a glass of water', ''], ['morning', 'Brush teeth', ''], ['morning', 'Wash face with cleanser', 'Skin care'],
+  ['morning', 'Moisturiser', 'Skin care'], ['morning', 'Exercise or walk', '20 minutes'], ['morning', 'Bath', ''],
+  ['morning', 'Sunscreen before going out', 'Skin care · SPF 30+'], ['morning', 'Healthy breakfast', ''],
+  ['work', 'Write today’s top 3 tasks', ''], ['work', 'Main work', ''], ['work', 'Reply to messages and emails', ''],
+  ['work', 'Lunch and a short break', ''], ['work', 'Drink water through the day', '3 litres'],
+  ['night', 'Learn something new', '20 minutes'], ['night', 'Dinner', ''], ['night', 'Wash face and night moisturiser', 'Skin care'],
+  ['night', 'Brush teeth', ''], ['night', 'Plan tomorrow', ''], ['night', 'Phone away, sleep on time', ''],
+];
+const tick = '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3L13 4.5" stroke="var(--surface)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const key = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+
+let user = null, plans = [], done = new Set(); // done holds "planId|day"
+let view = new Date(); view.setHours(0, 0, 0, 0);
+let tab = 'today';
+
+function applies(p, d) {
+  const k = key(d);
+  if (p.repeat === 'once') return p.on_date === k;
+  if (k < p.start_date) return false;
+  if (p.repeat === 'days') return (p.days || []).includes(d.getDay());
+  return true;
 }
+function repeatText(p) {
+  if (p.repeat === 'once') return p.on_date ? 'Only ' + fromKey(p.on_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'One date';
+  if (p.repeat === 'days') { const ds = (p.days || []).slice().sort(); return ds.length === 7 ? 'Every day' : ds.length ? ds.map(i => DAYS[i]).join(', ') : 'No days'; }
+  return 'Every day';
+}
+function err(el, e) { $(el).textContent = (e && e.message) ? e.message : String(e); $(el).hidden = false; }
+
+// ---------- data ----------
+async function loadPlans() {
+  const { data, error } = await db.from('plans').select('*').order('section').order('sort').order('created_at');
+  if (error) throw error; plans = data || [];
+}
+async function loadDone() {
+  const from = key(addDays(view, -6)), to = key(view);
+  const { data, error } = await db.from('completions').select('plan_id,day').gte('day', from).lte('day', to);
+  if (error) throw error; done = new Set((data || []).map(r => r.plan_id + '|' + r.day));
+}
+async function refresh() {
+  try { $('todayMsg').hidden = true; await Promise.all([loadPlans(), loadDone()]); }
+  catch (e) { err('todayMsg', e); }
+  render();
+}
+
+// ---------- render ----------
 function render() {
-  const now = new Date(), h = now.getHours();
-  $('date').textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
-  $('greet').textContent = h < 12 ? 'Good morning, Nitish' : h < 17 ? 'Good afternoon, Nitish' : 'Good evening, Nitish';
-  const n = total(), d = done.size, p = n ? d / n : 0;
-  $('sub').textContent = d === n && n ? 'All ' + n + ' done' : d + ' of ' + n + ' done';
-  const C = 2 * Math.PI * 42; $('bar').style.strokeDasharray = C; $('bar').style.strokeDashoffset = C * (1 - p);
-  $('pct').textContent = Math.round(p * 100) + '%';
-  $('allset').hidden = !(n && d === n);
-  // last 7 days
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isToday = key(view) === key(today), h = new Date().getHours();
+  $('date').textContent = view.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  $('toToday').hidden = isToday;
+  const name = (user && user.email || '').split('@')[0];
+  $('greet').textContent = isToday ? (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + ', Nitish'
+    : view.toLocaleDateString(undefined, { weekday: 'long' });
+  $('who').textContent = user ? 'Signed in as ' + user.email : '';
+
+  const todays = plans.filter(p => applies(p, view));
+  const k = key(view), n = todays.length, d = todays.filter(p => done.has(p.id + '|' + k)).length, frac = n ? d / n : 0;
+  $('sub').textContent = n ? (d === n ? 'All ' + n + ' done' : d + ' of ' + n + ' done') : 'Nothing planned';
+  const C = 2 * Math.PI * 42; $('bar').style.strokeDasharray = C; $('bar').style.strokeDashoffset = C * (1 - frac);
+  $('pct').textContent = Math.round(frac * 100) + '%';
+  $('allset').hidden = !(n && d === n) || tab !== 'today';
+
   let w = '';
   for (let i = 6; i >= 0; i--) {
-    const dt = new Date(now); dt.setDate(now.getDate() - i); const k = dayKey(dt);
-    const v = i === 0 ? p : (history[k] || 0);
-    w += `<div class="${i === 0 ? 'today' : ''}"><i><span style="width:${Math.round(v * 100)}%"></span></i>${dt.toLocaleDateString(undefined, { weekday: 'narrow' })}</div>`;
+    const day = addDays(view, -i), dk = key(day), ps = plans.filter(p => applies(p, day));
+    const v = ps.length ? ps.filter(p => done.has(p.id + '|' + dk)).length / ps.length : 0;
+    w += `<div class="${i === 0 ? 'cur' : ''}"><i><span style="width:${Math.round(v * 100)}%"></span></i>${day.toLocaleDateString(undefined, { weekday: 'narrow' })}</div>`;
   }
   $('week').innerHTML = w;
-  $('lists').innerHTML = lists.map(s => {
-    const sd = s.items.filter(i => done.has(i.id)).length;
-    return `<section style="--c:var(${s.c})"><h2>${esc(s.name)}<span class="when">${esc(s.when)}</span><small>${sd}/${s.items.length}</small></h2><ul>` +
-      s.items.map(i => `<li class="${done.has(i.id) ? 'on' : ''}"><button class="item" type="button" data-id="${i.id}" aria-pressed="${done.has(i.id)}"><span class="box">${tick}</span><span class="label"><span>${esc(i.t)}</span>${i.n ? `<small>${esc(i.n)}</small>` : ''}</span></button><button class="del" type="button" data-del="${i.id}" aria-label="Remove ${esc(i.t)}">×</button></li>`).join('') +
-      `</ul><form class="add" data-sec="${s.id}"><input id="add-${s.id}" placeholder="Add to ${esc(s.name)}…" aria-label="New ${esc(s.name)} task"><button type="submit">Add</button></form></section>`;
+
+  $('starter').hidden = plans.length > 0;
+  $('lists').innerHTML = plans.length ? SECTIONS.map(s => {
+    const items = todays.filter(p => p.section === s.id);
+    const sd = items.filter(p => done.has(p.id + '|' + k)).length;
+    return `<section class="card sec" style="--c:var(${s.c})"><h2>${s.name}<span class="when">${s.when}</span><small>${sd}/${items.length}</small></h2>` +
+      (items.length ? '<ul>' + items.map(p => { const on = done.has(p.id + '|' + k);
+        return `<li class="${on ? 'on' : ''}"><button class="row" type="button" data-tick="${p.id}" aria-pressed="${on}"><span class="box">${tick}</span><span class="lbl"><span>${esc(p.title)}</span>${p.note ? `<small>${esc(p.note)}</small>` : ''}</span></button></li>`; }).join('') + '</ul>'
+        : `<div class="empty">Nothing planned for this part of the day.</div>`) + '</section>';
+  }).join('') : '';
+
+  $('planList').innerHTML = SECTIONS.map(s => {
+    const items = plans.filter(p => p.section === s.id);
+    return `<section class="card sec" style="--c:var(${s.c})"><h2>${s.name}<span class="when">${items.length} plans</span></h2>` +
+      (items.length ? '<ul>' + items.map(p => `<li><button class="row" type="button" data-edit="${p.id}"><span class="dot"></span><span class="lbl"><span>${esc(p.title)}</span>${p.note ? `<small>${esc(p.note)}</small>` : ''}</span><span class="tag">${esc(repeatText(p))}</span></button></li>`).join('') + '</ul>'
+        : `<div class="empty">No plans here yet.</div>`) + '</section>';
   }).join('');
 }
-$('lists').addEventListener('click', e => {
-  const b = e.target.closest('[data-id]'), x = e.target.closest('[data-del]');
-  if (b) { const id = b.dataset.id; done.has(id) ? done.delete(id) : done.add(id); save(); render(); }
-  if (x) { lists.forEach(s => s.items = s.items.filter(i => i.id !== x.dataset.del)); store.set(':lists', lists); save(); render(); }
+
+// ---------- ticking ----------
+$('lists').addEventListener('click', async e => {
+  const b = e.target.closest('[data-tick]'); if (!b) return;
+  const id = b.dataset.tick, day = key(view), k = id + '|' + day, was = done.has(k);
+  was ? done.delete(k) : done.add(k); render();
+  const q = was ? db.from('completions').delete().eq('plan_id', id).eq('day', day)
+                : db.from('completions').upsert({ plan_id: id, day }, { onConflict: 'user_id,plan_id,day' });
+  const { error } = await q;
+  if (error) { was ? done.add(k) : done.delete(k); render(); err('todayMsg', 'Could not save that tick. Check your internet and try again.'); }
 });
-$('lists').addEventListener('submit', e => {
-  e.preventDefault(); const f = e.target, v = f.querySelector('input').value.trim(); if (!v) return;
-  const s = lists.find(s => s.id === f.dataset.sec); s.items.push({ id: s.id + Date.now(), t: v, n: '' });
-  store.set(':lists', lists); save(); render(); const inp = $('add-' + s.id); if (inp) inp.focus();
+$('prev').onclick = () => { view = addDays(view, -1); refresh(); };
+$('next').onclick = () => { view = addDays(view, 1); refresh(); };
+$('toToday').onclick = () => { view = new Date(); view.setHours(0, 0, 0, 0); refresh(); };
+
+// ---------- tabs ----------
+function setTab(t) {
+  tab = t; $('tabToday').setAttribute('aria-selected', t === 'today'); $('tabPlans').setAttribute('aria-selected', t === 'plans');
+  $('viewToday').hidden = t !== 'today'; $('viewPlans').hidden = t !== 'plans'; render();
+}
+$('tabToday').onclick = () => setTab('today');
+$('tabPlans').onclick = () => setTab('plans');
+$('goPlans').onclick = () => setTab('plans');
+$('seed').onclick = async () => {
+  $('seed').disabled = true;
+  const rows = STARTER.map(([section, title, note], i) => ({ section, title, note, repeat: 'daily', sort: i }));
+  const { error } = await db.from('plans').insert(rows);
+  $('seed').disabled = false; if (error) err('todayMsg', error); else refresh();
+};
+
+// ---------- plan form ----------
+let form = {};
+function resetForm(p) {
+  form = p ? { id: p.id, section: p.section, repeat: p.repeat, days: (p.days || []).slice(), on_date: p.on_date || key(view) }
+           : { id: null, section: 'morning', repeat: 'daily', days: [view.getDay()], on_date: key(view) };
+  $('pTitle').value = p ? p.title : ''; $('pNote').value = p ? p.note : ''; $('pDate').value = form.on_date;
+  $('formTitle').textContent = p ? 'Edit plan' : 'Add a plan';
+  $('saveBtn').textContent = p ? 'Save changes' : 'Add plan';
+  $('cancelEdit').hidden = !p; $('delWrap').hidden = !p; $('delConfirm').hidden = true; $('formMsg').hidden = true;
+  paintForm();
+}
+function paintForm() {
+  document.querySelectorAll('#segSection button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === form.section));
+  document.querySelectorAll('#segRepeat button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === form.repeat));
+  $('daysWrap').hidden = form.repeat !== 'days'; $('dateWrap').hidden = form.repeat !== 'once';
+  $('daysWrap').innerHTML = [1, 2, 3, 4, 5, 6, 0].map(i => `<button type="button" data-day="${i}" aria-pressed="${form.days.includes(i)}">${DAYS[i].slice(0, 2)}</button>`).join('');
+}
+$('segSection').onclick = e => { const b = e.target.closest('[data-v]'); if (b) { form.section = b.dataset.v; paintForm(); } };
+$('segRepeat').onclick = e => { const b = e.target.closest('[data-v]'); if (b) { form.repeat = b.dataset.v; paintForm(); } };
+$('daysWrap').onclick = e => { const b = e.target.closest('[data-day]'); if (!b) return; const i = +b.dataset.day;
+  form.days = form.days.includes(i) ? form.days.filter(x => x !== i) : form.days.concat(i); paintForm(); };
+$('planList').onclick = e => { const b = e.target.closest('[data-edit]'); if (!b) return;
+  resetForm(plans.find(p => p.id === b.dataset.edit)); $('planForm').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+$('cancelEdit').onclick = () => resetForm(null);
+$('planForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('formMsg').hidden = true;
+  const title = $('pTitle').value.trim(); if (!title) return;
+  if (form.repeat === 'days' && !form.days.length) return err('formMsg', 'Pick at least one day.');
+  if (form.repeat === 'once' && !$('pDate').value) return err('formMsg', 'Pick a date.');
+  const row = { title, note: $('pNote').value.trim(), section: form.section, repeat: form.repeat,
+    days: form.repeat === 'days' ? form.days : [], on_date: form.repeat === 'once' ? $('pDate').value : null };
+  $('saveBtn').disabled = true;
+  const { error } = form.id ? await db.from('plans').update(row).eq('id', form.id)
+                            : await db.from('plans').insert({ ...row, sort: plans.length });
+  $('saveBtn').disabled = false;
+  if (error) return err('formMsg', error);
+  resetForm(null); await refresh();
 });
-$('edit').onclick = () => { const on = document.body.classList.toggle('editing'); $('edit').textContent = on ? 'Done editing' : 'Edit list'; };
-$('clear').onclick = () => { $('confirm').hidden = false; };
-$('no').onclick = () => { $('confirm').hidden = true; };
-$('yes').onclick = () => { done.clear(); save(); render(); $('confirm').hidden = true; };
-// new day check
-setInterval(() => { if (dayKey() !== today) { today = dayKey(); done = new Set(store.get(':done:' + today, [])); render(); } }, 30000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && dayKey() !== today) { today = dayKey(); done = new Set(store.get(':done:' + today, [])); render(); } });
-render();
+$('delBtn').onclick = () => { $('delConfirm').hidden = false; $('delWrap').hidden = true; };
+$('delNo').onclick = () => { $('delConfirm').hidden = true; $('delWrap').hidden = false; };
+$('delYes').onclick = async () => {
+  const { error } = await db.from('plans').delete().eq('id', form.id);
+  if (error) return err('formMsg', error);
+  resetForm(null); await refresh();
+};
+
+// ---------- auth ----------
+let signup = false;
+function paintAuth() {
+  $('authTitle').textContent = signup ? 'Create account' : 'Log in';
+  $('authBtn').textContent = signup ? 'Create account' : 'Log in';
+  $('authSwitch').textContent = signup ? 'Have an account? Log in' : 'New here? Create an account';
+  $('password').autocomplete = signup ? 'new-password' : 'current-password';
+}
+$('authSwitch').onclick = () => { signup = !signup; $('authMsg').hidden = true; paintAuth(); };
+$('authForm').addEventListener('submit', async e => {
+  e.preventDefault(); const email = $('email').value.trim(), password = $('password').value;
+  $('authBtn').disabled = true; $('authMsg').hidden = true; $('authMsg').classList.remove('err');
+  const res = signup ? await db.auth.signUp({ email, password, options: { emailRedirectTo: location.href.split('#')[0] } })
+                     : await db.auth.signInWithPassword({ email, password });
+  $('authBtn').disabled = false;
+  if (res.error) { $('authMsg').classList.add('err'); $('authMsg').textContent = res.error.message; $('authMsg').hidden = false; return; }
+  if (signup && !res.data.session) { $('authMsg').textContent = 'Account created. Open the email Supabase just sent you and tap the link, then log in here.'; $('authMsg').hidden = false; signup = false; paintAuth(); }
+});
+$('logout').onclick = async () => { await db.auth.signOut(); };
+
+async function enter(session) {
+  const next = session ? session.user : null;
+  if (next && user && next.id === user.id && !$('app').hidden) return; // token refresh, nothing changed
+  user = next;
+  if (!user) { plans = []; done = new Set(); show('auth'); paintAuth(); return; }
+  show('app'); resetForm(null); await refresh();
+}
+db.auth.onAuthStateChange((ev, session) => {
+  if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT' || ev === 'INITIAL_SESSION') setTimeout(() => enter(session), 0);
+});
+// new day while the app stays open
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !user) return; const t = new Date(); t.setHours(0, 0, 0, 0);
+  if (tab === 'today' && key(t) !== key(view) && key(addDays(view, 1)) === key(t)) { view = t; }
+  refresh();
+});
+})();
 </script>
 </body>
 </html>
