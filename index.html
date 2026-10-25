@@ -102,6 +102,7 @@ a.btn.primary { color: var(--bg); }
 .status { font-size: 13px; font-weight: 600; color: var(--muted); }
 .status.on { color: var(--done); }
 hr.sep { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+#widgetCode { width: 100%; font: 12px/1.4 ui-monospace, Menlo, monospace; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--field); color: var(--fg); }
 .btn.back { justify-self: center; color: var(--work); font-weight: 600; }
 
 /* tabs */
@@ -262,6 +263,12 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
       <p class="muted" style="margin:0">Show your Work &amp; To-do items in the iPhone Calendar. New items appear there by themselves. Tap on your iPhone, then <b>Subscribe</b>.</p>
       <a class="btn" id="calLink" href="#">Add Work &amp; To-do to Calendar</a>
       <a class="btn" href="reminders.ics">Add fixed daily reminders to Calendar</a>
+      <hr class="sep">
+      <h2>Home Screen widget</h2>
+      <p class="muted" style="margin:0">See today's Routine and Work progress on your iPhone Home Screen. It uses the free <b>Scriptable</b> app from the App Store.</p>
+      <button class="btn" id="widgetBtn" type="button">Copy widget code</button>
+      <textarea id="widgetCode" hidden readonly rows="6" aria-label="Widget code"></textarea>
+      <div class="msg" id="widgetMsg" hidden></div>
     </div>
     <div class="card form" id="resetCard">
       <h2>Start over</h2>
@@ -572,6 +579,16 @@ $('testBtn').onclick = async () => {
   smartMsg(data && data.sent ? 'Sent. It should appear on this phone in a few seconds.' : 'No device is registered yet. Turn smart reminders off and on again.', !(data && data.sent));
 };
 if (canPush()) { try { navigator.serviceWorker.register('sw.js'); } catch (e) {} }
+
+// ---------- home screen widget (Scriptable) ----------
+const WIDGET_SRC = "// Daily List widget (Scriptable). Shows today's progress; tap to open the list.\nconst FEED = \"__FEED__\";\nconst SITE = \"https://nitishdangeti.github.io/todolist/\";\nconst C = { bg: \"#17202B\", muted: \"#8D98A6\", text: \"#E9EDF2\", routine: \"#F0A04B\", work: \"#6A9CF0\", done: \"#4CC08A\" };\nconst fam = config.widgetFamily || \"medium\";\nconst W = fam === \"small\" ? 120 : 290;\n\nlet d = null;\ntry { const r = new Request(FEED + \"&n=\" + Date.now()); r.timeoutInterval = 15; d = await r.loadJSON(); } catch (e) { d = null; }\n\nconst w = new ListWidget();\nw.url = SITE;\nw.backgroundColor = new Color(C.bg);\nw.setPadding(14, 16, 14, 16);\n\nconst head = w.addStack(); head.centerAlignContent();\nconst t = head.addText(\"Daily List\"); t.font = Font.boldSystemFont(13); t.textColor = new Color(C.muted);\nhead.addSpacer();\nconst now = new Date();\nconst day = head.addText(now.toLocaleDateString(\"en-GB\", { weekday: \"short\", day: \"numeric\", month: \"short\" }));\nday.font = Font.mediumSystemFont(12); day.textColor = new Color(C.muted);\nw.addSpacer(8);\n\nfunction bar(frac, col) {\n  const c = new DrawContext(); c.size = new Size(W, 6); c.opaque = false; c.respectScreenScale = true;\n  c.setFillColor(new Color(\"#FFFFFF\", 0.14)); const p = new Path(); p.addRoundedRect(new Rect(0, 0, W, 6), 3, 3); c.addPath(p); c.fillPath();\n  if (frac > 0) { c.setFillColor(new Color(col)); const q = new Path(); q.addRoundedRect(new Rect(0, 0, Math.max(6, W * frac), 6), 3, 3); c.addPath(q); c.fillPath(); }\n  return c.getImage();\n}\nfunction row(label, o, col) {\n  const s = w.addStack(); s.centerAlignContent();\n  const l = s.addText(label); l.font = Font.semiboldSystemFont(fam === \"small\" ? 13 : 15); l.textColor = new Color(C.text);\n  s.addSpacer();\n  const all = o.total > 0 && o.done === o.total;\n  const v = s.addText(o.total ? o.done + \"/\" + o.total : \"–\"); v.font = Font.boldMonospacedSystemFont(fam === \"small\" ? 13 : 15);\n  v.textColor = new Color(all ? C.done : col);\n  w.addSpacer(4);\n  const img = w.addImage(bar(o.total ? o.done / o.total : 0, all ? C.done : col)); img.imageSize = new Size(W, 6);\n  w.addSpacer(fam === \"small\" ? 8 : 9);\n}\n\nif (!d || !d.routine) {\n  const m = w.addText(\"Couldn't load your list. Tap to open it.\"); m.font = Font.systemFont(13); m.textColor = new Color(C.text);\n} else {\n  row(\"Routine\", d.routine, C.routine);\n  row(fam === \"small\" ? \"Work\" : \"Work & To-do\", d.work, C.work);\n  if (fam !== \"small\") {\n    const h = now.getHours();\n    const order = h < 12 ? [\"morning\", \"work\", \"night\"] : h < 18 ? [\"work\", \"morning\", \"night\"] : [\"night\", \"work\", \"morning\"];\n    const left = []; order.forEach(k => d[k].left.forEach(x => left.push(x)));\n    const n = fam === \"large\" ? 8 : 2;\n    const msg = left.length ? \"Left: \" + left.slice(0, n).join(\" · \") + (left.length > n ? \"  +\" + (left.length - n) : \"\") : \"All done for today. Nice work.\";\n    const m = w.addText(msg); m.font = Font.systemFont(12); m.textColor = new Color(left.length ? C.muted : C.done); m.lineLimit = fam === \"large\" ? 6 : 2;\n  }\n}\nw.addSpacer();\nw.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);\nif (config.runsInWidget) Script.setWidget(w); else await w.presentMedium();\nScript.complete();\n";
+function widgetMsg(t) { $('widgetMsg').textContent = t; $('widgetMsg').hidden = !t; }
+$('widgetBtn').onclick = async () => {
+  if (!settings) return widgetMsg('Still loading. Try again in a moment.');
+  const code = WIDGET_SRC.replace('__FEED__', SUPABASE_URL + '/functions/v1/calendar?format=json&t=' + settings.cal_token);
+  try { await navigator.clipboard.writeText(code); $('widgetCode').hidden = true; widgetMsg('Copied. Now open Scriptable, tap +, paste, and name the script Daily List.'); }
+  catch (e) { $('widgetCode').value = code; $('widgetCode').hidden = false; $('widgetCode').focus(); $('widgetCode').select(); widgetMsg('Copy all of the text above, then paste it into Scriptable.'); }
+};
 
 // ---------- auth ----------
 let signup = false;
