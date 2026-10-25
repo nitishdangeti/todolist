@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Nitish's Daily List</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -31,6 +31,13 @@
   --morning: #F0A04B; --work: #6A9CF0; --night: #9C8AF0; --done: #4CC08A; --danger: #F07068; color-scheme: dark } }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
+html, body { max-width: 100%; overflow-x: hidden; }
+header > *, main > * { min-width: 0; }
+input { max-width: 100%; min-width: 0; -webkit-appearance: none; appearance: none; }
+li.pl { display: flex; align-items: stretch; }
+li.pl .row { flex: 1; min-width: 0; }
+.x { flex: none; min-width: 52px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--muted); font-size: 22px; padding: 0 12px; }
+.x.armed { color: var(--danger); font-size: 14px; font-weight: 600; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.4; -webkit-text-size-adjust: 100%;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-top: calc(20px + env(safe-area-inset-top, 0px)); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
@@ -57,7 +64,7 @@ label.f { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
 
 /* header */
 header { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; }
-.daynav { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.daynav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .daynav button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; width: 30px; height: 28px; line-height: 1; color: var(--fg); }
 .daynav .todaybtn { width: auto; padding: 0 8px; font-size: 12px; letter-spacing: .04em; }
 .ring { grid-row: 1 / span 3; grid-column: 2; width: 84px; height: 84px; position: relative; }
@@ -202,6 +209,15 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
       <div class="msg err" id="formMsg" hidden></div>
     </form>
     <div id="planList" style="display:grid;gap:16px"></div>
+    <div class="card form" id="resetCard">
+      <h2>Start over</h2>
+      <p class="muted" style="margin:0">Remove all your plans and their ticks, then add new ones or the starter routine.</p>
+      <div class="actions" id="resetWrap"><button class="btn danger" id="resetBtn" type="button">Remove all plans</button></div>
+      <div class="actions" id="resetConfirm" hidden>
+        <span class="small muted" style="align-self:center;flex-basis:100%">This deletes every plan and all past ticks. It can't be undone.</span>
+        <button class="btn danger" id="resetYes" type="button">Yes, remove all</button><button class="btn" id="resetNo" type="button">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <div class="foot"><span id="who"></span><button class="btn link" id="logout" type="button">Log out</button></div>
@@ -237,7 +253,7 @@ const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); r
 
 let user = null, plans = [], done = new Set(); // done holds "planId|day"
 let view = new Date(); view.setHours(0, 0, 0, 0);
-let tab = 'today';
+let tab = 'today', armed = null;
 
 function applies(p, d) {
   const k = key(d);
@@ -308,9 +324,10 @@ function render() {
   $('planList').innerHTML = SECTIONS.map(s => {
     const items = plans.filter(p => p.section === s.id);
     return `<section class="card sec" style="--c:var(${s.c})"><h2>${s.name}<span class="when">${items.length} plans</span></h2>` +
-      (items.length ? '<ul>' + items.map(p => `<li><button class="row" type="button" data-edit="${p.id}"><span class="dot"></span><span class="lbl"><span>${esc(p.title)}</span>${p.note ? `<small>${esc(p.note)}</small>` : ''}</span><span class="tag">${esc(repeatText(p))}</span></button></li>`).join('') + '</ul>'
+      (items.length ? '<ul>' + items.map(p => `<li class="pl"><button class="row" type="button" data-edit="${p.id}"><span class="dot"></span><span class="lbl"><span>${esc(p.title)}</span>${p.note ? `<small>${esc(p.note)}</small>` : ''}</span><span class="tag">${esc(repeatText(p))}</span></button><button class="x${armed === p.id ? ' armed' : ''}" type="button" data-del="${p.id}" aria-label="Remove ${esc(p.title)}">${armed === p.id ? 'Remove' : '×'}</button></li>`).join('') + '</ul>'
         : `<div class="empty">No plans here yet.</div>`) + '</section>';
   }).join('');
+  $('resetCard').hidden = !plans.length;
 }
 
 // ---------- ticking ----------
@@ -363,7 +380,18 @@ $('segSection').onclick = e => { const b = e.target.closest('[data-v]'); if (b) 
 $('segRepeat').onclick = e => { const b = e.target.closest('[data-v]'); if (b) { form.repeat = b.dataset.v; paintForm(); } };
 $('daysWrap').onclick = e => { const b = e.target.closest('[data-day]'); if (!b) return; const i = +b.dataset.day;
   form.days = form.days.includes(i) ? form.days.filter(x => x !== i) : form.days.concat(i); paintForm(); };
-$('planList').onclick = e => { const b = e.target.closest('[data-edit]'); if (!b) return;
+$('planList').onclick = async e => {
+  const x = e.target.closest('[data-del]');
+  if (x) {
+    const id = x.dataset.del;
+    if (armed !== id) { armed = id; render(); return; }
+    armed = null; const { error } = await db.from('plans').delete().eq('id', id);
+    if (error) return err('formMsg', error);
+    if (form.id === id) resetForm(null);
+    return refresh();
+  }
+  if (armed) { armed = null; render(); }
+  const b = e.target.closest('[data-edit]'); if (!b) return;
   resetForm(plans.find(p => p.id === b.dataset.edit)); $('planForm').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 $('cancelEdit').onclick = () => resetForm(null);
 $('planForm').addEventListener('submit', async e => {
@@ -386,6 +414,16 @@ $('delYes').onclick = async () => {
   const { error } = await db.from('plans').delete().eq('id', form.id);
   if (error) return err('formMsg', error);
   resetForm(null); await refresh();
+};
+
+$('resetBtn').onclick = () => { $('resetConfirm').hidden = false; $('resetWrap').hidden = true; };
+$('resetNo').onclick = () => { $('resetConfirm').hidden = true; $('resetWrap').hidden = false; };
+$('resetYes').onclick = async () => {
+  $('resetYes').disabled = true;
+  const { error } = await db.from('plans').delete().eq('user_id', user.id);
+  $('resetYes').disabled = false; $('resetConfirm').hidden = true; $('resetWrap').hidden = false;
+  if (error) return err('formMsg', error);
+  resetForm(null); await refresh(); setTab('today');
 };
 
 // ---------- auth ----------
