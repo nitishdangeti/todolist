@@ -67,12 +67,22 @@ header { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-it
 .daynav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .daynav button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; width: 30px; height: 28px; line-height: 1; color: var(--fg); }
 .daynav .todaybtn { width: auto; padding: 0 8px; font-size: 12px; letter-spacing: .04em; }
-.ring { grid-row: 1 / span 3; grid-column: 2; width: 84px; height: 84px; position: relative; }
+.ring { grid-row: 1 / span 2; grid-column: 2; width: 84px; height: 84px; position: relative; }
 .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 9; }
 .ring .track { stroke: var(--line); }
 .ring .bar { stroke: var(--done); stroke-linecap: round; transition: stroke-dashoffset .4s ease; }
 .ring b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 21px; font-variant-numeric: tabular-nums; }
+
+/* day bar */
+.daybar { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; gap: 8px; padding: 8px; }
+.daybar .arrow { height: 48px; border: 0; background: var(--field); border-radius: 12px; font-size: 28px; line-height: 1; color: var(--fg); }
+.dayinfo { text-align: center; min-width: 0; }
+.dayinfo .rel { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--done); }
+.dayinfo .rel.past { color: var(--muted); }
+.dayinfo .rel.future { color: var(--work); }
+.dayinfo .date { font-family: var(--display); font-size: 19px; font-weight: 700; line-height: 1.25; text-wrap: balance; }
+.btn.back { justify-self: center; color: var(--work); font-weight: 600; }
 
 /* tabs */
 .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; }
@@ -148,16 +158,17 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
 <!-- App -->
 <main id="app" hidden>
   <header>
-    <div class="daynav">
-      <button id="prev" type="button" aria-label="Previous day">‹</button>
-      <span id="date"></span>
-      <button id="next" type="button" aria-label="Next day">›</button>
-      <button id="toToday" class="todaybtn" type="button" hidden>Today</button>
-    </div>
-    <h1 id="greet">Today</h1>
+    <h1 id="greet">Hello, Nitish</h1>
     <div class="muted small" id="sub"></div>
     <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42"/><circle class="bar" id="bar" cx="50" cy="50" r="42"/></svg><b id="pct">0%</b></div>
   </header>
+
+  <div class="daybar card">
+    <button id="prev" class="arrow" type="button" aria-label="Previous day">‹</button>
+    <div class="dayinfo"><div class="rel" id="rel">Today</div><div class="date" id="date"></div></div>
+    <button id="next" class="arrow" type="button" aria-label="Next day">›</button>
+  </div>
+  <button id="toToday" class="btn link back" type="button" hidden>← Back to today</button>
 
   <div class="tabs" role="tablist">
     <button id="tabToday" role="tab" aria-selected="true" type="button">Today</button>
@@ -289,11 +300,14 @@ async function refresh() {
 function render() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const isToday = key(view) === key(today), h = new Date().getHours();
-  $('date').textContent = view.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  const diff = Math.round((view - today) / 86400000);
+  const rel = diff === 0 ? 'Today' : diff === -1 ? 'Yesterday' : diff === 1 ? 'Tomorrow' : diff < 0 ? (-diff) + ' days ago' : 'In ' + diff + ' days';
+  $('date').textContent = view.toLocaleDateString('en-GB', { weekday: 'long' }) + ', ' + view.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  $('rel').textContent = rel;
+  $('rel').className = 'rel' + (diff < 0 ? ' past' : diff > 0 ? ' future' : '');
   $('toToday').hidden = isToday;
-  const name = (user && user.email || '').split('@')[0];
-  $('greet').textContent = isToday ? (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + ', Nitish'
-    : view.toLocaleDateString(undefined, { weekday: 'long' });
+  $('tabToday').textContent = Math.abs(diff) <= 1 ? rel : view.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  $('greet').textContent = (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + ', Nitish';
   $('who').textContent = user ? 'Signed in as ' + user.email : '';
 
   const todays = plans.filter(p => applies(p, view));
