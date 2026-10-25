@@ -90,10 +90,12 @@ header { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-it
 #viewToday > *, #viewPlans > *, #lists > *, #planList > * { min-width: 0; }
 .quick select { flex: none; width: auto; padding: 9px 6px; font-size: 15px; }
 .quick .btn { flex: none; padding: 9px 14px; }
+.tabs button small { font-weight: 500; opacity: .7; margin-left: 3px; font-variant-numeric: tabular-nums; }
+a.btn { display: block; text-align: center; text-decoration: none; }
 .btn.back { justify-self: center; color: var(--work); font-weight: 600; }
 
 /* tabs */
-.tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; }
+.tabs { display: grid; grid-template-columns: 1fr 1.35fr .8fr; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; }
 .tabs button { border: 0; background: none; border-radius: 9px; padding: 7px; font-size: 15px; font-weight: 600; color: var(--muted); }
 .tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); }
 
@@ -179,7 +181,8 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
   <button id="toToday" class="btn link back" type="button" hidden>← Back to today</button>
 
   <div class="tabs" role="tablist">
-    <button id="tabToday" role="tab" aria-selected="true" type="button">Today</button>
+    <button id="tabRoutine" role="tab" aria-selected="true" type="button">Routine</button>
+    <button id="tabWork" role="tab" aria-selected="false" type="button">Work &amp; To-do</button>
     <button id="tabPlans" role="tab" aria-selected="false" type="button">Plans</button>
   </div>
 
@@ -190,7 +193,7 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
     <div class="msg err" id="todayMsg" hidden></div>
     <form class="card quick" id="quickForm" autocomplete="off">
       <input id="qTitle" maxlength="120" placeholder="Add a task for today" aria-label="New task for this day">
-      <select id="qSection" aria-label="Time of day"><option value="morning">Morning</option><option value="work" selected>Day</option><option value="night">Night</option></select>
+      <select id="qSection" aria-label="Morning or night"><option value="morning">Morning</option><option value="night">Night</option></select>
       <button class="btn primary" type="submit">Add</button>
     </form>
     <div id="lists" style="display:grid;gap:16px"></div>
@@ -207,9 +210,9 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
       <h2 id="formTitle">Add a plan</h2>
       <label class="f">What to do <input id="pTitle" required maxlength="120" placeholder="e.g. Gym, Call mom, Edit video"></label>
       <label class="f">Detail (optional) <input id="pNote" maxlength="120" placeholder="e.g. 30 minutes"></label>
-      <div class="f" style="display:grid;gap:6px;font-size:14px;font-weight:600">Time of day
+      <div class="f" style="display:grid;gap:6px;font-size:14px;font-weight:600">Goes in
         <div class="seg" id="segSection">
-          <button type="button" data-v="morning">Morning</button><button type="button" data-v="work">Day</button><button type="button" data-v="night">Night</button>
+          <button type="button" data-v="morning">Morning</button><button type="button" data-v="work">Work</button><button type="button" data-v="night">Night</button>
         </div>
       </div>
       <div class="f" style="display:grid;gap:6px;font-size:14px;font-weight:600">Repeat
@@ -233,6 +236,11 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
       <div class="msg err" id="formMsg" hidden></div>
     </form>
     <div id="planList" style="display:grid;gap:16px"></div>
+    <div class="card form" id="remindCard">
+      <h2>Daily reminders</h2>
+      <p class="muted" style="margin:0">Get a phone notification at 7:30 am (morning routine), 10:00 am (work &amp; to-do) and 9:30 pm (night routine). Open this page on your iPhone, tap the button, then choose <b>Add All</b>. You can change the times later in the Calendar app.</p>
+      <a class="btn primary" href="reminders.ics">Add reminders to my calendar</a>
+    </div>
     <div class="card form" id="resetCard">
       <h2>Start over</h2>
       <p class="muted" style="margin:0">Remove all your plans and their ticks, then add new ones or the starter routine.</p>
@@ -255,17 +263,18 @@ if (!window.supabase || SUPABASE_URL.startsWith('PASTE') || SUPABASE_ANON_KEY.st
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
 const SECTIONS = [
-  { id: 'morning', name: 'Morning', when: 'Wake up', c: '--morning' },
-  { id: 'work', name: 'Day', when: 'Work', c: '--work' },
-  { id: 'night', name: 'Night', when: 'Wind down', c: '--night' },
+  { id: 'morning', name: 'Morning routine', when: 'Wake up', c: '--morning' },
+  { id: 'work', name: 'Work & To-do', when: 'This day', c: '--work' },
+  { id: 'night', name: 'Night routine', when: 'Wind down', c: '--night' },
 ];
+const TAB_SECTIONS = { routine: ['morning', 'night'], work: ['work'] };
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const STARTER = [
   ['morning', 'Drink a glass of water', ''], ['morning', 'Brush teeth', ''], ['morning', 'Wash face with cleanser', 'Skin care'],
   ['morning', 'Moisturiser', 'Skin care'], ['morning', 'Exercise or walk', '20 minutes'], ['morning', 'Bath', ''],
   ['morning', 'Sunscreen before going out', 'Skin care · SPF 30+'], ['morning', 'Healthy breakfast', ''],
   ['work', 'Write today’s top 3 tasks', ''], ['work', 'Main work', ''], ['work', 'Reply to messages and emails', ''],
-  ['work', 'Lunch and a short break', ''], ['work', 'Drink water through the day', '3 litres'],
+  ['work', 'Lunch and a short break', ''], ['morning', 'Drink water through the day', '3 litres'],
   ['night', 'Learn something new', '20 minutes'], ['night', 'Dinner', ''], ['night', 'Wash face and night moisturiser', 'Skin care'],
   ['night', 'Brush teeth', ''], ['night', 'Plan tomorrow', ''], ['night', 'Phone away, sleep on time', ''],
 ];
@@ -277,7 +286,7 @@ const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); r
 
 let user = null, plans = [], done = new Set(); // done holds "planId|day"
 let view = new Date(); view.setHours(0, 0, 0, 0);
-let tab = 'today', armed = null;
+let tab = 'routine', armed = null;
 
 function applies(p, d) {
   const k = key(d);
@@ -319,10 +328,10 @@ function render() {
   $('rel').textContent = rel;
   $('rel').className = 'rel' + (diff < 0 ? ' past' : diff > 0 ? ' future' : '');
   $('toToday').hidden = isToday;
-  $('tabToday').textContent = Math.abs(diff) <= 1 ? rel : view.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   $('greet').textContent = (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + ', Nitish';
   $('jump').value = key(view);
-  $('qTitle').placeholder = 'Task for ' + (Math.abs(diff) <= 1 ? rel.toLowerCase() : 'this day');
+  $('qTitle').placeholder = (tab === 'work' ? 'To-do for ' : 'Routine for ') + (Math.abs(diff) <= 1 ? rel.toLowerCase() : 'this day');
+  $('qSection').hidden = tab === 'work';
   $('who').textContent = user ? 'Signed in as ' + user.email : '';
 
   const todays = plans.filter(p => applies(p, view));
@@ -330,7 +339,10 @@ function render() {
   $('sub').textContent = n ? (d === n ? 'All ' + n + ' done' : d + ' of ' + n + ' done') : 'Nothing planned';
   const C = 2 * Math.PI * 42; $('bar').style.strokeDasharray = C; $('bar').style.strokeDashoffset = C * (1 - frac);
   $('pct').textContent = Math.round(frac * 100) + '%';
-  $('allset').hidden = !(n && d === n) || tab !== 'today';
+  $('allset').hidden = !(n && d === n) || tab === 'plans';
+  const cnt = ids => { const its = todays.filter(p => ids.includes(p.section)); return its.filter(p => done.has(p.id + '|' + k)).length + '/' + its.length; };
+  $('tabRoutine').innerHTML = 'Routine <small>' + cnt(TAB_SECTIONS.routine) + '</small>';
+  $('tabWork').innerHTML = 'Work &amp; To-do <small>' + cnt(TAB_SECTIONS.work) + '</small>';
 
   let w = '';
   for (let i = 6; i >= 0; i--) {
@@ -341,13 +353,13 @@ function render() {
   $('week').innerHTML = w;
 
   $('starter').hidden = plans.length > 0;
-  $('lists').innerHTML = plans.length ? SECTIONS.map(s => {
+  $('lists').innerHTML = plans.length ? SECTIONS.filter(s => (TAB_SECTIONS[tab] || []).includes(s.id)).map(s => {
     const items = todays.filter(p => p.section === s.id);
     const sd = items.filter(p => done.has(p.id + '|' + k)).length;
     return `<section class="card sec" style="--c:var(${s.c})"><h2>${s.name}<span class="when">${s.when}</span><small>${sd}/${items.length}</small></h2>` +
       (items.length ? '<ul>' + items.map(p => { const on = done.has(p.id + '|' + k);
         return `<li class="${on ? 'on' : ''}"><button class="row" type="button" data-tick="${p.id}" aria-pressed="${on}"><span class="box">${tick}</span><span class="lbl"><span>${esc(p.title)}</span>${p.note ? `<small>${esc(p.note)}</small>` : ''}</span></button></li>`; }).join('') + '</ul>'
-        : `<div class="empty">Nothing planned for this part of the day.</div>`) + '</section>';
+        : `<div class="empty">${s.id === 'work' ? 'No work or to-dos for this day. Add one above.' : 'Nothing here yet. Add it in the Plans tab.'}</div>`) + '</section>';
   }).join('') : '';
 
   $('planList').innerHTML = SECTIONS.map(s => {
@@ -375,10 +387,11 @@ $('toToday').onclick = () => { view = new Date(); view.setHours(0, 0, 0, 0); ref
 
 // ---------- tabs ----------
 function setTab(t) {
-  tab = t; $('tabToday').setAttribute('aria-selected', t === 'today'); $('tabPlans').setAttribute('aria-selected', t === 'plans');
-  $('viewToday').hidden = t !== 'today'; $('viewPlans').hidden = t !== 'plans'; render();
+  tab = t; [['tabRoutine', 'routine'], ['tabWork', 'work'], ['tabPlans', 'plans']].forEach(([id, v]) => $(id).setAttribute('aria-selected', t === v));
+  $('viewToday').hidden = t === 'plans'; $('viewPlans').hidden = t !== 'plans'; render();
 }
-$('tabToday').onclick = () => setTab('today');
+$('tabRoutine').onclick = () => setTab('routine');
+$('tabWork').onclick = () => setTab('work');
 $('tabPlans').onclick = () => setTab('plans');
 $('goPlans').onclick = () => setTab('plans');
 $('seed').onclick = async () => {
@@ -393,7 +406,7 @@ $('jump').addEventListener('click', () => { try { $('jump').showPicker(); } catc
 $('jump').addEventListener('change', () => { if ($('jump').value) { view = fromKey($('jump').value); refresh(); } });
 $('quickForm').addEventListener('submit', async e => {
   e.preventDefault(); const title = $('qTitle').value.trim(); if (!title) return;
-  const { error } = await db.from('plans').insert({ title, note: '', section: $('qSection').value, repeat: 'once', on_date: key(view), sort: plans.length });
+  const { error } = await db.from('plans').insert({ title, note: '', section: tab === 'work' ? 'work' : $('qSection').value, repeat: 'once', on_date: key(view), sort: plans.length });
   if (error) return err('todayMsg', error);
   $('qTitle').value = ''; await refresh();
 });
@@ -462,7 +475,7 @@ $('resetYes').onclick = async () => {
   const { error } = await db.from('plans').delete().eq('user_id', user.id);
   $('resetYes').disabled = false; $('resetConfirm').hidden = true; $('resetWrap').hidden = false;
   if (error) return err('formMsg', error);
-  resetForm(null); await refresh(); setTab('today');
+  resetForm(null); await refresh(); setTab('routine');
 };
 
 // ---------- auth ----------
@@ -498,7 +511,7 @@ db.auth.onAuthStateChange((ev, session) => {
 // new day while the app stays open
 document.addEventListener('visibilitychange', () => {
   if (document.hidden || !user) return; const t = new Date(); t.setHours(0, 0, 0, 0);
-  if (tab === 'today' && key(t) !== key(view) && key(addDays(view, 1)) === key(t)) { view = t; }
+  if (tab !== 'plans' && key(t) !== key(view) && key(addDays(view, 1)) === key(t)) { view = t; }
   refresh();
 });
 })();
