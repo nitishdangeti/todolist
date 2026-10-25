@@ -42,7 +42,7 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--bo
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-top: calc(20px + env(safe-area-inset-top, 0px)); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
 main { max-width: 520px; margin: 0 auto; display: grid; gap: 16px; }
-h1 { font-family: var(--display); font-size: 30px; line-height: 1.1; margin: 0; text-wrap: balance; }
+h1 { font-family: var(--display); font-size: 25px; line-height: 1.1; margin: 0; text-wrap: balance; }
 h2 { font-family: var(--display); font-size: 19px; margin: 0; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
@@ -81,12 +81,20 @@ header { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-it
 .dayinfo .rel { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--done); }
 .dayinfo .rel.past { color: var(--muted); }
 .dayinfo .rel.future { color: var(--work); }
-.dayinfo .date { font-family: var(--display); font-size: 19px; font-weight: 700; line-height: 1.25; text-wrap: balance; }
+.dayinfo .date { font-family: var(--display); font-size: 18px; font-weight: 700; line-height: 1.25; text-wrap: balance; }
+.dayinfo .date::after { content: " \25BE"; font-size: 13px; color: var(--muted); }
+.pick { position: relative; display: block; cursor: pointer; }
+.pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; padding: 0; border: 0; cursor: pointer; }
+.quick { display: flex; gap: 6px; padding: 6px; }
+.quick input { flex: 1 1 0; width: 0; min-width: 0; padding: 9px 11px; font-size: 16px; }
+#viewToday > *, #viewPlans > *, #lists > *, #planList > * { min-width: 0; }
+.quick select { flex: none; width: auto; padding: 9px 6px; font-size: 15px; }
+.quick .btn { flex: none; padding: 9px 14px; }
 .btn.back { justify-self: center; color: var(--work); font-weight: 600; }
 
 /* tabs */
 .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; }
-.tabs button { border: 0; background: none; border-radius: 9px; padding: 10px; font-weight: 600; color: var(--muted); }
+.tabs button { border: 0; background: none; border-radius: 9px; padding: 7px; font-size: 15px; font-weight: 600; color: var(--muted); }
 .tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); }
 
 .week { display: flex; gap: 6px; }
@@ -96,16 +104,16 @@ header { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-it
 .week .cur { color: var(--fg); font-weight: 600; }
 
 section.sec { overflow: hidden; }
-section.sec > h2 { display: flex; align-items: baseline; gap: 8px; padding: 14px 16px 10px; }
+section.sec > h2 { display: flex; align-items: baseline; gap: 8px; padding: 11px 14px 7px; font-size: 16px; }
 section.sec > h2 .when { font-family: var(--body); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c); margin-right: auto; }
 section.sec > h2 small { font-family: var(--body); font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 ul { list-style: none; margin: 0; padding: 0; }
 li { border-top: 1px solid var(--line); }
-.row { width: 100%; display: flex; align-items: center; gap: 14px; padding: 13px 16px; min-height: 56px; background: none; border: 0; text-align: left; }
-.box { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--c); display: grid; place-items: center; transition: background .15s; }
-.box svg { width: 15px; height: 15px; opacity: 0; transform: scale(.6); transition: .15s; }
+.row { width: 100%; display: flex; align-items: center; gap: 11px; padding: 8px 14px; min-height: 42px; font-size: 15px; background: none; border: 0; text-align: left; }
+.box { flex: none; width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--c); display: grid; place-items: center; transition: background .15s; }
+.box svg { width: 12px; height: 12px; opacity: 0; transform: scale(.6); transition: .15s; }
 .lbl { min-width: 0; flex: 1; }
-.lbl small { display: block; color: var(--muted); font-size: 13px; }
+.lbl small { display: block; color: var(--muted); font-size: 12px; }
 li.on .box { background: var(--c); }
 li.on .box svg { opacity: 1; transform: none; }
 li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
@@ -165,7 +173,7 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
 
   <div class="daybar card">
     <button id="prev" class="arrow" type="button" aria-label="Previous day">‹</button>
-    <div class="dayinfo"><div class="rel" id="rel">Today</div><div class="date" id="date"></div></div>
+    <div class="dayinfo"><div class="rel" id="rel">Today</div><label class="pick"><span class="date" id="date"></span><input type="date" id="jump" aria-label="Pick a date"></label></div>
     <button id="next" class="arrow" type="button" aria-label="Next day">›</button>
   </div>
   <button id="toToday" class="btn link back" type="button" hidden>← Back to today</button>
@@ -180,6 +188,11 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
     <div class="week" id="week" aria-label="Last 7 days"></div>
     <div class="allset" id="allset" hidden>Everything done. Nice work.</div>
     <div class="msg err" id="todayMsg" hidden></div>
+    <form class="card quick" id="quickForm" autocomplete="off">
+      <input id="qTitle" maxlength="120" placeholder="Add a task for today" aria-label="New task for this day">
+      <select id="qSection" aria-label="Time of day"><option value="morning">Morning</option><option value="work" selected>Day</option><option value="night">Night</option></select>
+      <button class="btn primary" type="submit">Add</button>
+    </form>
     <div id="lists" style="display:grid;gap:16px"></div>
     <div class="card form" id="starter" hidden>
       <h2>No plans yet</h2>
@@ -308,6 +321,8 @@ function render() {
   $('toToday').hidden = isToday;
   $('tabToday').textContent = Math.abs(diff) <= 1 ? rel : view.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   $('greet').textContent = (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + ', Nitish';
+  $('jump').value = key(view);
+  $('qTitle').placeholder = 'Task for ' + (Math.abs(diff) <= 1 ? rel.toLowerCase() : 'this day');
   $('who').textContent = user ? 'Signed in as ' + user.email : '';
 
   const todays = plans.filter(p => applies(p, view));
@@ -372,6 +387,16 @@ $('seed').onclick = async () => {
   const { error } = await db.from('plans').insert(rows);
   $('seed').disabled = false; if (error) err('todayMsg', error); else refresh();
 };
+
+// ---------- date picker + quick add ----------
+$('jump').addEventListener('click', () => { try { $('jump').showPicker(); } catch (e) {} });
+$('jump').addEventListener('change', () => { if ($('jump').value) { view = fromKey($('jump').value); refresh(); } });
+$('quickForm').addEventListener('submit', async e => {
+  e.preventDefault(); const title = $('qTitle').value.trim(); if (!title) return;
+  const { error } = await db.from('plans').insert({ title, note: '', section: $('qSection').value, repeat: 'once', on_date: key(view), sort: plans.length });
+  if (error) return err('todayMsg', error);
+  $('qTitle').value = ''; await refresh();
+});
 
 // ---------- plan form ----------
 let form = {};
