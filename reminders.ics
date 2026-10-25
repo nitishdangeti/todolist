@@ -1,0 +1,62 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Daily List//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Daily List
+X-WR-TIMEZONE:Asia/Kolkata
+BEGIN:VTIMEZONE
+TZID:Asia/Kolkata
+BEGIN:STANDARD
+DTSTART:19700101T000000
+TZOFFSETFROM:+0530
+TZOFFSETTO:+0530
+TZNAME:IST
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:daily-list-morning@nitishdangeti.github.io
+DTSTAMP:20261025T043000Z
+DTSTART;TZID=Asia/Kolkata:20261026T073000
+DURATION:PT15M
+RRULE:FREQ=DAILY
+SUMMARY:Morning routine
+DESCRIPTION:Time for your morning routine. Open your Daily List and tick it off. https://nitishdangeti.github.io/todolist/
+URL:https://nitishdangeti.github.io/todolist/
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Morning routine
+TRIGGER:PT0M
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:daily-list-work@nitishdangeti.github.io
+DTSTAMP:20261025T043000Z
+DTSTART;TZID=Asia/Kolkata:20261026T100000
+DURATION:PT15M
+RRULE:FREQ=DAILY
+SUMMARY:Work & To-do
+DESCRIPTION:Check today's work and to-do list. https://nitishdangeti.github.io/todolist/
+URL:https://nitishdangeti.github.io/todolist/
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Work & To-do
+TRIGGER:PT0M
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:daily-list-night@nitishdangeti.github.io
+DTSTAMP:20261025T043000Z
+DTSTART;TZID=Asia/Kolkata:20261025T213000
+DURATION:PT15M
+RRULE:FREQ=DAILY
+SUMMARY:Night routine
+DESCRIPTION:Time for your night routine. Open your Daily List and tick it off. https://nitishdangeti.github.io/todolist/
+URL:https://nitishdangeti.github.io/todolist/
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Night routine
+TRIGGER:PT0M
+END:VALARM
+END:VEVENT
+END:VCALENDAR
