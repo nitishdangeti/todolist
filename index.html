@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Daily List">
 <meta name="theme-color" content="#EEF1F4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E1217" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -92,6 +94,14 @@ header { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-it
 .quick .btn { flex: none; padding: 9px 14px; }
 .tabs button small { font-weight: 500; opacity: .7; margin-left: 3px; font-variant-numeric: tabular-nums; }
 a.btn { display: block; text-align: center; text-decoration: none; }
+.times { display: grid; gap: 8px; }
+.times label.f { grid-template-columns: 1fr 150px; align-items: center; }
+.times input { padding: 9px 10px; font-size: 16px; }
+a.btn { color: var(--fg); }
+a.btn.primary { color: var(--bg); }
+.status { font-size: 13px; font-weight: 600; color: var(--muted); }
+.status.on { color: var(--done); }
+hr.sep { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .btn.back { justify-self: center; color: var(--work); font-weight: 600; }
 
 /* tabs */
@@ -237,9 +247,21 @@ li.on .lbl > span { color: var(--muted); text-decoration: line-through; }
     </form>
     <div id="planList" style="display:grid;gap:16px"></div>
     <div class="card form" id="remindCard">
-      <h2>Daily reminders</h2>
-      <p class="muted" style="margin:0">Get a phone notification at 7:30 am (morning routine), 10:00 am (work &amp; to-do) and 9:30 pm (night routine). Open this page on your iPhone, tap the button, then choose <b>Add All</b>. You can change the times later in the Calendar app.</p>
-      <a class="btn primary" href="reminders.ics">Add reminders to my calendar</a>
+      <h2>Smart reminders <span class="status" id="smartStatus">Off</span></h2>
+      <p class="muted" style="margin:0">At these times you get a notification only if tasks in that list are still unticked.</p>
+      <div class="times">
+        <label class="f">Morning <input type="time" id="tMorning" value="08:00"></label>
+        <label class="f">Work <input type="time" id="tWork" value="11:00"></label>
+        <label class="f">Night <input type="time" id="tNight" value="21:30"></label>
+      </div>
+      <button class="btn primary" id="smartBtn" type="button">Turn on smart reminders</button>
+      <button class="btn" id="testBtn" type="button" hidden>Send a test notification</button>
+      <div class="msg" id="smartMsg" hidden></div>
+      <hr class="sep">
+      <h2>Calendar</h2>
+      <p class="muted" style="margin:0">Show your Work &amp; To-do items in the iPhone Calendar. New items appear there by themselves. Tap on your iPhone, then <b>Subscribe</b>.</p>
+      <a class="btn" id="calLink" href="#">Add Work &amp; To-do to Calendar</a>
+      <a class="btn" href="reminders.ics">Add fixed daily reminders to Calendar</a>
     </div>
     <div class="card form" id="resetCard">
       <h2>Start over</h2>
@@ -478,6 +500,79 @@ $('resetYes').onclick = async () => {
   resetForm(null); await refresh(); setTab('routine');
 };
 
+// ---------- smart reminders + calendar feed ----------
+const VAPID_PUBLIC = 'BDXxmtVNMOBlisIvwhHywtLSotbQ_q6JHoCGDSInHguBuls1nfRyad2LL5-tsj7vfHE8R-HkhbU9TxFoVYjDHYs';
+let settings = null;
+const tzName = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'; } catch (e) { return 'Asia/Kolkata'; } };
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const canPush = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+function smartMsg(text, bad) { $('smartMsg').textContent = text; $('smartMsg').classList.toggle('err', !!bad); $('smartMsg').hidden = !text; }
+function b64u(s) { const p = '='.repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+async function deviceSub() {
+  if (!canPush()) return null;
+  try { const reg = await navigator.serviceWorker.getRegistration(); return reg ? await reg.pushManager.getSubscription() : null; } catch (e) { return null; }
+}
+async function loadSettings() {
+  try {
+    let { data, error } = await db.from('reminder_settings').select('*').maybeSingle();
+    if (error) throw error;
+    if (!data) { const r = await db.from('reminder_settings').insert({ tz: tzName() }).select().single(); if (r.error) throw r.error; data = r.data; }
+    settings = data; await paintReminders();
+  } catch (e) { smartMsg('Could not load reminder settings: ' + (e.message || e), true); }
+}
+async function paintReminders() {
+  if (!settings) return;
+  $('tMorning').value = String(settings.morning).slice(0, 5); $('tWork').value = String(settings.work).slice(0, 5); $('tNight').value = String(settings.night).slice(0, 5);
+  $('calLink').href = SUPABASE_URL.replace(/^https:/, 'webcal:') + '/functions/v1/calendar?t=' + settings.cal_token;
+  const sub = await deviceSub(), on = settings.enabled && !!sub;
+  $('smartStatus').textContent = on ? 'On for this phone' : settings.enabled ? 'On, not on this device' : 'Off';
+  $('smartStatus').classList.toggle('on', on);
+  $('smartBtn').textContent = on ? 'Turn off smart reminders' : 'Turn on smart reminders';
+  $('smartBtn').classList.toggle('primary', !on);
+  $('testBtn').hidden = !on;
+}
+async function saveTimes() {
+  if (!settings) return;
+  const row = { morning: $('tMorning').value || '08:00', work: $('tWork').value || '11:00', night: $('tNight').value || '21:30', last_sent: {}, tz: tzName(), updated_at: new Date().toISOString() };
+  const { data, error } = await db.from('reminder_settings').update(row).eq('user_id', user.id).select().single();
+  if (error) return smartMsg(error.message, true);
+  settings = data; smartMsg('Times saved.');
+}
+['tMorning', 'tWork', 'tNight'].forEach(id => $(id).addEventListener('change', saveTimes));
+$('smartBtn').onclick = async () => {
+  smartMsg('');
+  const sub = await deviceSub();
+  if (settings && settings.enabled && sub) {
+    try { await db.from('push_subs').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); } catch (e) {}
+    await db.from('reminder_settings').update({ enabled: false }).eq('user_id', user.id);
+    settings.enabled = false; await paintReminders(); return smartMsg('Smart reminders are off on this phone.');
+  }
+  if (!canPush()) return smartMsg(isIOS && !standalone()
+    ? 'On iPhone, first add this page to your Home Screen: tap Share, then Add to Home Screen. Open Daily List from the new icon and tap this button again.'
+    : 'This browser can\'t show notifications. On iPhone, open Daily List from its Home Screen icon (iOS 16.4 or newer).', true);
+  $('smartBtn').disabled = true;
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error('Notifications are blocked. Turn them on in Settings, Notifications, Daily List, then try again.');
+    const reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
+    const s = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUBLIC) }));
+    const j = s.toJSON();
+    const a = await db.from('push_subs').upsert({ endpoint: j.endpoint, sub: j }, { onConflict: 'endpoint' }); if (a.error) throw a.error;
+    const b = await db.from('reminder_settings').update({ enabled: true, tz: tzName(), last_sent: {} }).eq('user_id', user.id).select().single(); if (b.error) throw b.error;
+    settings = b.data; await paintReminders(); smartMsg('Smart reminders are on. Tap "Send a test notification" to check.');
+  } catch (e) { smartMsg(e.message || String(e), true); }
+  $('smartBtn').disabled = false;
+};
+$('testBtn').onclick = async () => {
+  $('testBtn').disabled = true; smartMsg('Sending…');
+  const { data, error } = await db.functions.invoke('remind', { body: { test: true } });
+  $('testBtn').disabled = false;
+  if (error) return smartMsg('Test failed: ' + error.message, true);
+  smartMsg(data && data.sent ? 'Sent. It should appear on this phone in a few seconds.' : 'No device is registered yet. Turn smart reminders off and on again.', !(data && data.sent));
+};
+if (canPush()) { try { navigator.serviceWorker.register('sw.js'); } catch (e) {} }
+
 // ---------- auth ----------
 let signup = false;
 function paintAuth() {
@@ -503,7 +598,7 @@ async function enter(session) {
   if (next && user && next.id === user.id && !$('app').hidden) return; // token refresh, nothing changed
   user = next;
   if (!user) { plans = []; done = new Set(); show('auth'); paintAuth(); return; }
-  show('app'); resetForm(null); await refresh();
+  show('app'); resetForm(null); await refresh(); loadSettings();
 }
 db.auth.onAuthStateChange((ev, session) => {
   if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT' || ev === 'INITIAL_SESSION') setTimeout(() => enter(session), 0);
